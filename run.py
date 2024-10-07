@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import argparse
@@ -16,15 +16,21 @@ class KoSBERTModel:
     def __init__(self, model_name: str):
         self.model = SentenceTransformer(model_name)
 
-    @app.post("/v1/embeddings", response_model=EmbeddingResponse)
-    async def get_embeddings(self, request: EmbeddingRequest):
-        embeddings = self.model.encode(request.texts)
-        return {"embeddings": embeddings.tolist()}
-    
-    @app.get("/v1/health")
-    async def health(self):
-        return {"status": "ok"}
-    
+    def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        return self.model.encode(texts).tolist()
+
+def get_model() -> KoSBERTModel:
+    return app.state.model
+
+@app.post("/v1/embeddings", response_model=EmbeddingResponse)
+async def get_embeddings(request: EmbeddingRequest, model: KoSBERTModel = Depends(get_model)):
+    embeddings = model.get_embeddings(request.texts)
+    return {"embeddings": embeddings}
+
+@app.get("/v1/health")
+async def health():
+    return {"status": "ok"}
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str)
@@ -32,5 +38,5 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=80)
     args = parser.parse_args()
 
-    model = KoSBERTModel(model_name=args.model_name)
+    app.state.model = KoSBERTModel(model_name=args.model_name)
     uvicorn.run(app, host=args.host, port=args.port)

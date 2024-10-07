@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import argparse
+import uvicorn
 
 app = FastAPI()
 
@@ -11,7 +12,7 @@ class EmbeddingRequest(BaseModel):
 class EmbeddingResponse(BaseModel):
     embeddings: list[list[float]]
 
-class KoSBERTModel(BaseModel):
+class KoSBERTModel:
     def __init__(self, model_name: str):
         self.model = SentenceTransformer(model_name)
 
@@ -31,5 +32,5 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=80)
     args = parser.parse_args()
 
-    model = KoSBERTModel(args.model_name)
-    model.run(app, host=args.host, port=args.port)
+    model = KoSBERTModel(model_name=args.model_name)
+    uvicorn.run(app, host=args.host, port=args.port)
